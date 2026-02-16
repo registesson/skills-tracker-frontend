@@ -1,52 +1,137 @@
-# SkillsTrackerFrontend
+# Skills Tracker Frontend 📚
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 19.2.19.
+Application Angular pour suivre vos compétences et votre progression. Frontend pour l'API Spring Boot Skills Tracker.
 
-## Development server
+## 🚀 Fonctionnalités
 
-To start a local development server, run:
+- ✅ Authentification (inscription/connexion)
+- ✅ Gestion des compétences (CRUD)
+- ✅ Catégorisation des compétences
+- ✅ Suivi des niveaux (actuel et cible)
+- ✅ Statistiques de progression
+- ✅ Interface responsive et moderne
 
-```bash
-ng serve
-```
+## 📋 Prérequis
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+- Node.js 18 ou supérieur
+- npm ou yarn
+- API Spring Boot Skills Tracker en cours d'exécution sur http://localhost:8080
 
-## Code scaffolding
-
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
-
-```bash
-ng generate component component-name
-```
-
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
+## 🛠️ Installation
 
 ```bash
-ng generate --help
+# Installer les dépendances
+npm install
 ```
 
-## Building
+## 💻 Développement
 
-To build the project run:
+Pour démarrer le serveur de développement :
 
 ```bash
-ng build
+npm start
 ```
 
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
+L'application sera accessible sur `http://localhost:4200/`
 
-## Running unit tests
+**Note** : Le proxy Angular est configuré pour rediriger `/api/*` vers `http://localhost:8080`. Cela évite les problèmes CORS en développement.
 
-To execute unit tests with the [Karma](https://karma-runner.github.io) test runner, use the following command:
+## 🏗️ Structure du projet
+
+```
+src/app/
+├── core/                      # Services, modèles, guards, interceptors
+│   ├── guards/
+│   │   └── auth.guard.ts     # Protection des routes authentifiées
+│   ├── interceptors/
+│   │   └── auth.interceptor.ts  # Ajout automatique du token JWT
+│   ├── models/
+│   │   ├── auth.model.ts     # Modèles d'authentification
+│   │   ├── skill.model.ts    # Modèles de compétences
+│   │   └── learning-session.model.ts
+│   └── services/
+│       ├── auth.service.ts   # Service d'authentification
+│       ├── skill.service.ts  # Service de gestion des compétences
+│       └── learning-session.service.ts
+├── features/                  # Composants par fonctionnalité
+│   ├── auth/
+│   │   ├── login/           # Page de connexion
+│   │   └── register/        # Page d'inscription
+│   └── skills/
+│       └── dashboard/       # Tableau de bord des compétences
+└── shared/                   # Composants partagés
+    └── components/
+        └── header/          # En-tête de navigation
+```
+
+## 🔑 Configuration de l'API
+
+### Développement
+
+Le proxy Angular (`proxy.conf.json`) redirige automatiquement `/api/*` vers `http://localhost:8080`.
+Les services utilisent des URLs relatives (`/api/auth`, `/api/skills`).
+
+### Configuration CORS Backend (optionnel)
+
+Si vous préférez ne pas utiliser le proxy, ajoutez cette configuration dans votre backend Spring Boot :
+
+```java
+@Configuration
+public class CorsConfig {
+    @Bean
+    public WebMvcConfigurer corsConfigurer() {
+        return new WebMvcConfigurer() {
+            @Override
+            public void addCorsMappings(CorsRegistry registry) {
+                registry.addMapping("/api/**")
+                    .allowedOrigins("http://localhost:4200")
+                    .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
+                    .allowedHeaders("*")
+                    .allowCredentials(true);
+            }
+        };
+    }
+}
+```
+
+Puis modifiez les URLs dans les services pour pointer vers `http://localhost:8080/api/...`
+
+## 📱 Pages disponibles
+
+- `/login` - Connexion
+- `/register` - Inscription
+- `/dashboard` - Tableau de bord (protégé)
+
+## 🎨 Technologies
+
+- **Angular 19** - Framework frontend
+- **TypeScript** - Langage
+- **RxJS** - Programmation réactive
+- **Signal API** - Gestion d'état moderne
+- **Standalone Components** - Architecture modulaire
+
+## 🔐 Authentification
+
+L'application utilise JWT pour l'authentification :
+
+- Le token est stocké dans le localStorage
+- L'intercepteur HTTP ajoute automatiquement le token aux requêtes
+- Le guard protège les routes nécessitant une authentification
+
+## 📦 Build de production
 
 ```bash
-ng test
+npm run build
 ```
 
-## Running end-to-end tests
+Les fichiers de production seront générés dans le dossier `dist/`.
 
-For end-to-end (e2e) testing, run:
+## 🧪 Tests
+
+```bash
+# Tests unitaires
+npm test
+```
 
 ```bash
 ng e2e
