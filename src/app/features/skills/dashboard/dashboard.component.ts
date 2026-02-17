@@ -20,6 +20,13 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
         </button>
       </div>
       
+      @if (successMessage()) {
+        <div class="success-message">
+          <span class="success-icon">✓</span>
+          {{ successMessage() }}
+        </div>
+      }
+      
       @if (showAddForm()) {
         <div class="add-skill-form">
           <h3>Nouvelle Compétence</h3>
@@ -32,29 +39,39 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
                   type="text" 
                   formControlName="name"
                   placeholder="Ex: Angular"
+                  [class.error]="isFieldInvalid('name')"
                 />
+                @if (isFieldInvalid('name')) {
+                  <span class="error-message">Le nom est obligatoire</span>
+                }
               </div>
               
               <div class="form-group">
                 <label for="category">Catégorie *</label>
-                <select id="category" formControlName="category">
+                <select id="category" formControlName="category" [class.error]="isFieldInvalid('category')">
                   <option value="">Sélectionner...</option>
                   @for (cat of categories; track cat.value) {
                     <option [value]="cat.value">{{ cat.label }}</option>
                   }
                 </select>
+                @if (isFieldInvalid('category')) {
+                  <span class="error-message">La catégorie est obligatoire</span>
+                }
               </div>
             </div>
             
             <div class="form-row">
               <div class="form-group">
                 <label for="currentLevel">Niveau actuel *</label>
-                <select id="currentLevel" formControlName="currentLevel">
+                <select id="currentLevel" formControlName="currentLevel" [class.error]="isFieldInvalid('currentLevel')">
                   <option value="">Sélectionner...</option>
                   @for (level of levels; track level.value) {
                     <option [value]="level.value">{{ level.label }}</option>
                   }
                 </select>
+                @if (isFieldInvalid('currentLevel')) {
+                  <span class="error-message">Le niveau actuel est obligatoire</span>
+                }
               </div>
               
               <div class="form-group">
@@ -228,6 +245,18 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
     .form-group textarea:focus {
       outline: none;
       border-color: #667eea;
+    }
+    
+    .form-group input.error,
+    .form-group select.error {
+      border-color: #f56565;
+    }
+    
+    .error-message {
+      display: block;
+      color: #f56565;
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
     }
     
     .submit-btn {
@@ -421,6 +450,42 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
     .empty-state p {
       margin: 0.5rem 0;
     }
+    
+    .success-message {
+      background: #c6f6d5;
+      color: #22543d;
+      padding: 1rem 1.5rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 500;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    .success-icon {
+      background: #48bb78;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+    }
+    
+    @keyframes slideDown {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -430,6 +495,7 @@ export class DashboardComponent implements OnInit {
     skillForm: FormGroup;
     showAddForm = signal(false);
     submitting = signal(false);
+    successMessage = signal<string>('');
 
     categories = [
         { value: SkillCategory.PROGRAMMING, label: 'Programmation' },
@@ -470,6 +536,12 @@ export class DashboardComponent implements OnInit {
         if (!this.showAddForm()) {
             this.skillForm.reset();
         }
+        this.successMessage.set('');
+    }
+    
+    isFieldInvalid(fieldName: string): boolean {
+        const field = this.skillForm.get(fieldName);
+        return !!(field && field.invalid && (field.dirty || field.touched));
     }
 
     onSubmit() {
@@ -484,15 +556,26 @@ export class DashboardComponent implements OnInit {
             };
 
             this.skillService.createSkill(request).subscribe({
-                next: () => {
+                next: (skill) => {
                     this.skillForm.reset();
                     this.showAddForm.set(false);
                     this.submitting.set(false);
+                    this.successMessage.set(`✨ La compétence "${skill.name}" a été créée avec succès !`);
+                    
+                    // Masquer le message après 5 secondes
+                    setTimeout(() => {
+                        this.successMessage.set('');
+                    }, 5000);
                 },
                 error: () => {
                     this.submitting.set(false);
                     alert('Erreur lors de la création de la compétence');
                 }
+            });
+        } else {
+            // Marquer tous les champs comme touchés pour afficher les erreurs
+            Object.keys(this.skillForm.controls).forEach(key => {
+                this.skillForm.get(key)?.markAsTouched();
             });
         }
     }
