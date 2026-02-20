@@ -1,5 +1,5 @@
 import { Injectable, signal } from "@angular/core";
-import { CreateSkillRequest, Skill, SkillCategory, SkillLevel } from "../models/skill.model";
+import { CreateSkillRequest, Skill, SkillCategory, SkillLevel, UpdateSkillRequest } from "../models/skill.model";
 import { HttpClient } from "@angular/common/http";
 import { Observable, tap } from "rxjs";
 
@@ -35,6 +35,14 @@ export class SkillService {
 
     updateSkillLevel(skillId: string, level: SkillLevel): Observable<Skill> {
         return this.http.put<Skill>(`${this.API_URL}/${skillId}/level`, { level }).pipe(
+            tap(updatedSkill => {
+                this.skills.update(skills => skills.map(s => s.id === skillId ? updatedSkill : s));
+            })
+        );
+    }
+
+    updateSkill(skillId: string, request: UpdateSkillRequest): Observable<Skill> {
+        return this.http.put<Skill>(`${this.API_URL}/${skillId}`, request).pipe(
             tap(updatedSkill => {
                 this.skills.update(skills => skills.map(s => s.id === skillId ? updatedSkill : s));
             })

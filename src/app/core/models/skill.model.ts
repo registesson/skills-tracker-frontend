@@ -39,4 +39,12 @@ export enum SkillCategory {
     targetLevel?: SkillLevel;
   }
 
+  export interface UpdateSkillRequest {
+    name: string;
+    description?: string;
+    category: SkillCategory;
+    currentLevel: SkillLevel;
+    targetLevel?: SkillLevel;
+  }
+
   

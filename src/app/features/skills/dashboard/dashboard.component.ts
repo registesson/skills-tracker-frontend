@@ -1,4 +1,4 @@
-import { Component, OnInit, signal, inject } from "@angular/core";
+import { Component, OnInit, signal, inject, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { SkillService } from "../../../core/services/skill.service";
@@ -15,9 +15,29 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
     <div class="dashboard-container">
       <div class="dashboard-header">
         <h2>Mes Compétences</h2>
-        <button class="add-btn" (click)="toggleAddForm()">
-          {{ showAddForm() ? 'Annuler' : '+ Ajouter une compétence' }}
-        </button>
+        <div class="header-actions">
+          <div class="view-toggle">
+            <button 
+              class="toggle-btn" 
+              [class.active]="viewMode() === 'grid'" 
+              (click)="setViewMode('grid')"
+              title="Vue grille"
+            >
+              <span class="toggle-icon">▦</span>
+            </button>
+            <button 
+              class="toggle-btn" 
+              [class.active]="viewMode() === 'list'" 
+              (click)="setViewMode('list')"
+              title="Vue liste"
+            >
+              <span class="toggle-icon">☰</span>
+            </button>
+          </div>
+          <button class="add-btn" (click)="toggleAddForm()">
+            {{ showAddForm() ? 'Annuler' : '+ Ajouter une compétence' }}
+          </button>
+        </div>
       </div>
       
       @if (successMessage()) {
@@ -102,7 +122,7 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
         </div>
       }
       
-      <div class="skills-grid">
+      <div class="skills-container" [class.list-view]="viewMode() === 'list'">
         @if (skillService.loading()) {
           <div class="loading">Chargement des compétences...</div>
         } @else if (skillService.skills().length === 0) {
@@ -112,52 +132,109 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
           </div>
         } @else {
           @for (skill of skillService.skills(); track skill.id) {
-            <div class="skill-card">
-              <div class="skill-header">
-                <h3>{{ skill.name }}</h3>
-                <span class="category-badge" [attr.data-category]="skill.category">
-                  {{ getCategoryLabel(skill.category) }}
-                </span>
-              </div>
+            <div class="skill-card" [class.editing]="editingSkillId() === skill.id">
               
-              @if (skill.description) {
-                <p class="description">{{ skill.description }}</p>
-              }
-              
-              <div class="skill-levels">
-                <div class="level-info">
-                  <span class="label">Niveau actuel:</span>
-                  <span class="level-badge" [attr.data-level]="skill.currentLevel">
-                    {{ getLevelLabel(skill.currentLevel) }}
+              @if (editingSkillId() === skill.id) {
+                <!-- Mode édition -->
+                <form [formGroup]="editForm" (ngSubmit)="onSubmitEdit()" class="edit-form">
+                  <h3 class="edit-title">Modifier la compétence</h3>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Nom *</label>
+                      <input type="text" formControlName="name" [class.error]="isEditFieldInvalid('name')" />
+                    </div>
+                    <div class="form-group">
+                      <label>Catégorie *</label>
+                      <select formControlName="category" [class.error]="isEditFieldInvalid('category')">
+                        @for (cat of categories; track cat.value) {
+                          <option [value]="cat.value">{{ cat.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-row">
+                    <div class="form-group">
+                      <label>Niveau actuel *</label>
+                      <select formControlName="currentLevel" [class.error]="isEditFieldInvalid('currentLevel')">
+                        @for (level of levels; track level.value) {
+                          <option [value]="level.value">{{ level.label }}</option>
+                        }
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Niveau cible</label>
+                      <select formControlName="targetLevel">
+                        <option value="">Aucun</option>
+                        @for (level of levels; track level.value) {
+                          <option [value]="level.value">{{ level.label }}</option>
+                        }
+                      </select>
+                    </div>
+                  </div>
+                  <div class="form-group">
+                    <label>Description</label>
+                    <textarea formControlName="description" rows="2"></textarea>
+                  </div>
+                  <div class="edit-actions">
+                    <button type="submit" class="save-btn" [disabled]="editForm.invalid || submitting()">
+                      {{ submitting() ? 'Sauvegarde...' : '✓ Sauvegarder' }}
+                    </button>
+                    <button type="button" class="cancel-btn" (click)="cancelEdit()">
+                      ✕ Annuler
+                    </button>
+                  </div>
+                </form>
+              } @else {
+                <!-- Mode affichage -->
+                <div class="skill-header">
+                  <h3>{{ skill.name }}</h3>
+                  <span class="category-badge" [attr.data-category]="skill.category">
+                    {{ getCategoryLabel(skill.category) }}
                   </span>
                 </div>
                 
-                @if (skill.targetLevel) {
+                @if (skill.description) {
+                  <p class="description">{{ skill.description }}</p>
+                }
+                
+                <div class="skill-levels">
                   <div class="level-info">
-                    <span class="label">Objectif:</span>
-                    <span class="level-badge target" [attr.data-level]="skill.targetLevel">
-                      {{ getLevelLabel(skill.targetLevel) }}
+                    <span class="label">Niveau actuel:</span>
+                    <span class="level-badge" [attr.data-level]="skill.currentLevel">
+                      {{ getLevelLabel(skill.currentLevel) }}
                     </span>
                   </div>
-                }
-              </div>
-              
-              <div class="skill-stats">
-                <div class="stat">
-                  <span class="stat-value">{{ skill.totalLearningSessions }}</span>
-                  <span class="stat-label">Sessions</span>
+                  
+                  @if (skill.targetLevel) {
+                    <div class="level-info">
+                      <span class="label">Objectif:</span>
+                      <span class="level-badge target" [attr.data-level]="skill.targetLevel">
+                        {{ getLevelLabel(skill.targetLevel) }}
+                      </span>
+                    </div>
+                  }
                 </div>
-                <div class="stat">
-                  <span class="stat-value">{{ skill.totalLearningHours }}h</span>
-                  <span class="stat-label">Total</span>
+                
+                <div class="skill-stats">
+                  <div class="stat">
+                    <span class="stat-value">{{ skill.totalLearningSessions }}</span>
+                    <span class="stat-label">Sessions</span>
+                  </div>
+                  <div class="stat">
+                    <span class="stat-value">{{ skill.totalLearningHours }}h</span>
+                    <span class="stat-label">Total</span>
+                  </div>
                 </div>
-              </div>
-              
-              <div class="skill-actions">
-                <button class="delete-btn" (click)="deleteSkill(skill.id)">
-                  🗑️ Supprimer
-                </button>
-              </div>
+                
+                <div class="skill-actions">
+                  <button class="edit-btn" (click)="startEdit(skill)">
+                    ✏️ Modifier
+                  </button>
+                  <button class="delete-btn" (click)="deleteSkill(skill.id)">
+                    🗑️ Supprimer
+                  </button>
+                </div>
+              }
             </div>
           }
         }
@@ -176,12 +253,50 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       justify-content: space-between;
       align-items: center;
       margin-bottom: 2rem;
+      flex-wrap: wrap;
+      gap: 1rem;
     }
     
     .dashboard-header h2 {
       font-size: 2rem;
       color: #2d3748;
       margin: 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .view-toggle {
+      display: flex;
+      background: #edf2f7;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .toggle-btn {
+      padding: 0.5rem 0.75rem;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      color: #718096;
+      font-size: 1.1rem;
+      transition: all 0.2s;
+    }
+
+    .toggle-btn.active {
+      background: #667eea;
+      color: white;
+    }
+
+    .toggle-btn:hover:not(.active) {
+      background: #e2e8f0;
+    }
+
+    .toggle-icon {
+      font-size: 1rem;
     }
     
     .add-btn {
@@ -279,11 +394,49 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       background: #cbd5e0;
       cursor: not-allowed;
     }
-    
-    .skills-grid {
+
+    /* Grid view (default) */
+    .skills-container {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
       gap: 1.5rem;
+    }
+
+    /* List view */
+    .skills-container.list-view {
+      grid-template-columns: 1fr;
+    }
+
+    .skills-container.list-view .skill-card {
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      grid-template-rows: auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+    }
+
+    .skills-container.list-view .skill-header {
+      margin-bottom: 0;
+    }
+
+    .skills-container.list-view .skill-levels {
+      margin-bottom: 0;
+    }
+
+    .skills-container.list-view .skill-stats {
+      border-top: none;
+      border-bottom: none;
+      margin-bottom: 0;
+      padding: 0;
+    }
+
+    .skills-container.list-view .skill-actions {
+      flex-direction: row;
+    }
+
+    .skills-container.list-view .description {
+      display: none;
     }
     
     .skill-card {
@@ -291,12 +444,20 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       padding: 1.5rem;
       border-radius: 8px;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      transition: transform 0.2s;
+      transition: transform 0.2s, box-shadow 0.2s;
     }
     
     .skill-card:hover {
       transform: translateY(-2px);
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .skill-card.editing {
+      border: 2px solid #667eea;
+    }
+
+    .skill-card.editing:hover {
+      transform: none;
     }
     
     .skill-header {
@@ -317,6 +478,7 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       border-radius: 12px;
       font-size: 0.75rem;
       font-weight: 600;
+      white-space: nowrap;
     }
     
     .category-badge[data-category="PROGRAMMING"] {
@@ -337,6 +499,31 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
     .category-badge[data-category="DEVOPS"] {
       background: #feebc8;
       color: #7c2d12;
+    }
+
+    .category-badge[data-category="ARCHITECTURE"] {
+      background: #e9d8fd;
+      color: #44337a;
+    }
+
+    .category-badge[data-category="SOFT_SKILLS"] {
+      background: #fefcbf;
+      color: #744210;
+    }
+
+    .category-badge[data-category="TOOLS"] {
+      background: #b2f5ea;
+      color: #234e52;
+    }
+
+    .category-badge[data-category="LANGUAGE"] {
+      background: #fed7e2;
+      color: #702459;
+    }
+
+    .category-badge[data-category="OTHER"] {
+      background: #e2e8f0;
+      color: #4a5568;
     }
     
     .description {
@@ -424,6 +611,22 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       display: flex;
       gap: 0.5rem;
     }
+
+    .edit-btn {
+      flex: 1;
+      padding: 0.5rem;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      transition: background 0.2s;
+    }
+
+    .edit-btn:hover {
+      background: #5a67d8;
+    }
     
     .delete-btn {
       flex: 1;
@@ -434,10 +637,65 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
       border-radius: 4px;
       cursor: pointer;
       font-size: 0.875rem;
+      transition: background 0.2s;
     }
     
     .delete-btn:hover {
       background: #e53e3e;
+    }
+
+    /* Edit form inline */
+    .edit-form {
+      width: 100%;
+    }
+
+    .edit-title {
+      margin: 0 0 1rem 0;
+      color: #667eea;
+      font-size: 1.1rem;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .save-btn {
+      flex: 1;
+      padding: 0.6rem;
+      background: #48bb78;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .save-btn:hover:not(:disabled) {
+      background: #38a169;
+    }
+
+    .save-btn:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+    }
+
+    .cancel-btn {
+      flex: 1;
+      padding: 0.6rem;
+      background: #a0aec0;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 0.875rem;
+    }
+
+    .cancel-btn:hover {
+      background: #718096;
     }
     
     .loading, .empty-state {
@@ -486,6 +744,80 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
         transform: translateY(0);
       }
     }
+
+    /* Responsive design */
+    @media (max-width: 768px) {
+      .dashboard-container {
+        padding: 1rem;
+      }
+
+      .dashboard-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .dashboard-header h2 {
+        font-size: 1.5rem;
+      }
+
+      .header-actions {
+        justify-content: space-between;
+      }
+
+      .add-btn {
+        padding: 0.6rem 1rem;
+        font-size: 0.875rem;
+      }
+
+      .skills-container {
+        grid-template-columns: 1fr;
+      }
+
+      .skills-container.list-view .skill-card {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+
+      .form-row {
+        grid-template-columns: 1fr;
+      }
+
+      .add-skill-form {
+        padding: 1.5rem;
+      }
+
+      .skill-card {
+        padding: 1rem;
+      }
+
+      .skill-header h3 {
+        font-size: 1.1rem;
+      }
+
+      .stat-value {
+        font-size: 1.25rem;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .dashboard-container {
+        padding: 0.75rem;
+      }
+
+      .skill-actions {
+        flex-direction: column;
+      }
+
+      .header-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+      }
+
+      .add-btn {
+        width: 100%;
+        text-align: center;
+      }
+    }
   `]
 })
 export class DashboardComponent implements OnInit {
@@ -493,9 +825,12 @@ export class DashboardComponent implements OnInit {
     private fb = inject(FormBuilder);
 
     skillForm: FormGroup;
+    editForm: FormGroup;
     showAddForm = signal(false);
     submitting = signal(false);
     successMessage = signal<string>('');
+    viewMode = signal<'grid' | 'list'>('grid');
+    editingSkillId = signal<string | null>(null);
 
     categories = [
         { value: SkillCategory.PROGRAMMING, label: 'Programmation' },
@@ -525,10 +860,22 @@ export class DashboardComponent implements OnInit {
             currentLevel: ['', Validators.required],
             targetLevel: [''],
         });
+
+        this.editForm = this.fb.group({
+            name: ['', Validators.required],
+            description: [''],
+            category: ['', Validators.required],
+            currentLevel: ['', Validators.required],
+            targetLevel: [''],
+        });
     }
 
     ngOnInit() {
         this.skillService.loadSkills().subscribe();
+    }
+
+    setViewMode(mode: 'grid' | 'list') {
+        this.viewMode.set(mode);
     }
 
     toggleAddForm() {
@@ -541,6 +888,11 @@ export class DashboardComponent implements OnInit {
     
     isFieldInvalid(fieldName: string): boolean {
         const field = this.skillForm.get(fieldName);
+        return !!(field && field.invalid && (field.dirty || field.touched));
+    }
+
+    isEditFieldInvalid(fieldName: string): boolean {
+        const field = this.editForm.get(fieldName);
         return !!(field && field.invalid && (field.dirty || field.touched));
     }
 
@@ -576,6 +928,54 @@ export class DashboardComponent implements OnInit {
             // Marquer tous les champs comme touchés pour afficher les erreurs
             Object.keys(this.skillForm.controls).forEach(key => {
                 this.skillForm.get(key)?.markAsTouched();
+            });
+        }
+    }
+
+    startEdit(skill: Skill) {
+        this.editingSkillId.set(skill.id);
+        this.editForm.patchValue({
+            name: skill.name,
+            description: skill.description || '',
+            category: skill.category,
+            currentLevel: skill.currentLevel,
+            targetLevel: skill.targetLevel || '',
+        });
+    }
+
+    cancelEdit() {
+        this.editingSkillId.set(null);
+        this.editForm.reset();
+    }
+
+    onSubmitEdit() {
+        if (this.editForm.valid && this.editingSkillId()) {
+            this.submitting.set(true);
+            const formValue = this.editForm.value;
+            const request = {
+                ...formValue,
+                targetLevel: formValue.targetLevel || undefined
+            };
+
+            this.skillService.updateSkill(this.editingSkillId()!, request).subscribe({
+                next: (skill) => {
+                    this.editingSkillId.set(null);
+                    this.editForm.reset();
+                    this.submitting.set(false);
+                    this.successMessage.set(`✨ La compétence "${skill.name}" a été modifiée avec succès !`);
+
+                    setTimeout(() => {
+                        this.successMessage.set('');
+                    }, 5000);
+                },
+                error: () => {
+                    this.submitting.set(false);
+                    alert('Erreur lors de la modification de la compétence');
+                }
+            });
+        } else {
+            Object.keys(this.editForm.controls).forEach(key => {
+                this.editForm.get(key)?.markAsTouched();
             });
         }
     }
