@@ -1,12 +1,12 @@
 import { Component, inject } from "@angular/core";
 import { AuthService } from "../../../core/services/auth.service";
-import { Router } from "@angular/router";
+import { Router, RouterLink } from "@angular/router";
 import { CommonModule } from "@angular/common";
 
 @Component({
     selector: 'app-header',
     standalone: true,
-    imports: [CommonModule],
+    imports: [CommonModule, RouterLink],
     template: `
     <header class="header">
       <div class="container">
@@ -16,6 +16,8 @@ import { CommonModule } from "@angular/common";
         
         @if (authService.isAuthenticated()) {
           <nav class="nav">
+            <a class="nav-link" routerLink="/dashboard">Compétences</a>
+            <a class="nav-link session-link" routerLink="/sessions/new">⏱️ Nouvelle session</a>
             <div class="user-info">
               <span>👤 {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}</span>
             </div>
@@ -74,6 +76,32 @@ import { CommonModule } from "@angular/common";
     
     .logout-btn:hover {
       background: #e53e3e;
+    }
+
+    .nav-link {
+      color: #4a5568;
+      text-decoration: none;
+      font-weight: 500;
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-link:hover {
+      background: #edf2f7;
+      color: #667eea;
+    }
+
+    .session-link {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      font-weight: 600;
+    }
+
+    .session-link:hover {
+      opacity: 0.9;
+      color: white;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
   `]
 })

@@ -16,6 +16,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   { 
+    path: 'sessions/new', 
+    loadComponent: () => import('./features/sessions/session-form/session-form.component').then(m => m.SessionFormComponent),
+    canActivate: [authGuard]
+  },
+  { 
     path: '', 
     redirectTo: '/dashboard', 
     pathMatch: 'full' 
