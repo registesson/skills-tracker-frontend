@@ -17,6 +17,7 @@ import { CommonModule } from "@angular/common";
         @if (authService.isAuthenticated()) {
           <nav class="nav">
             <a class="nav-link" routerLink="/dashboard">Compétences</a>
+            <a class="nav-link" routerLink="/sessions/history">📋 Historique</a>
             <a class="nav-link session-link" routerLink="/sessions/new">⏱️ Nouvelle session</a>
             <div class="user-info">
               <span>👤 {{ authService.currentUser()?.firstName }} {{ authService.currentUser()?.lastName }}</span>

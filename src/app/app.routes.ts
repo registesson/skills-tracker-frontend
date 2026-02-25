@@ -21,6 +21,11 @@ export const routes: Routes = [
     canActivate: [authGuard]
   },
   { 
+    path: 'sessions/history', 
+    loadComponent: () => import('./features/sessions/session-history/session-history.component').then(m => m.SessionHistoryComponent),
+    canActivate: [authGuard]
+  },
+  { 
     path: '', 
     redirectTo: '/dashboard', 
     pathMatch: 'full' 

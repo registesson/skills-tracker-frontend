@@ -1,12 +1,11 @@
 export interface LearningSession {
     id: string;
-    skillId: string;
-    skillName: string;
-    sessionDate: string;
-    durationMinutes: number;
+    skill: string;
+    date: string;
+    duration: number;
     notes?: string;
-    resourcesUsed?: string;
-    createdAt: string;
+    resources?: string;
+    totalDuration: number;
   }
   
   export interface CreateLearningSessionRequest {
