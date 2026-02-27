@@ -1,9 +1,10 @@
-import { Component, OnInit, signal, inject, computed } from "@angular/core";
+import { Component, OnInit, signal, inject, computed, DestroyRef } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { SkillService } from "../../../core/services/skill.service";
 import { Skill, SkillCategory, SkillLevel } from "../../../core/models/skill.model";
 import { HeaderComponent } from "../../../shared/components/header/header.component";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
 @Component({
     selector: 'app-dashboard',
@@ -47,6 +48,50 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
         </div>
       }
       
+      <form class="filters" [formGroup]="filterForm">
+        <div class="filter-group">
+          <label for="search">Rechercher</label>
+          <input
+            id="search"
+            type="text"
+            placeholder="Nom de compétence..."
+            formControlName="search"
+          />
+        </div>
+        <div class="filter-group">
+          <label for="filterCategory">Catégorie</label>
+          <select id="filterCategory" formControlName="category">
+            <option value="">Toutes</option>
+            @for (cat of categories; track cat.value) {
+              <option [value]="cat.value">{{ cat.label }}</option>
+            }
+          </select>
+        </div>
+        <div class="filter-group">
+          <label for="filterLevel">Niveau</label>
+          <select id="filterLevel" formControlName="level">
+            <option value="">Tous</option>
+            @for (level of levels; track level.value) {
+              <option [value]="level.value">{{ level.label }}</option>
+            }
+          </select>
+        </div>
+        <button
+          type="button"
+          class="reset-filters"
+          (click)="clearFilters()"
+          [disabled]="!hasActiveFilters()"
+        >
+          Réinitialiser
+        </button>
+      </form>
+
+      @if (hasActiveFilters()) {
+        <div class="filter-summary">
+          {{ filteredSkills().length }} résultat(s) sur {{ skillService.skills().length }}
+        </div>
+      }
+
       @if (showAddForm()) {
         <div class="add-skill-form">
           <h3>Nouvelle Compétence</h3>
@@ -130,8 +175,13 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
             <p>Aucune compétence pour le moment.</p>
             <p>Commencez par en ajouter une !</p>
           </div>
+        } @else if (filteredSkills().length === 0) {
+          <div class="empty-state">
+            <p>Aucune compétence ne correspond aux filtres.</p>
+            <p>Essayez d'élargir votre recherche.</p>
+          </div>
         } @else {
-          @for (skill of skillService.skills(); track skill.id) {
+          @for (skill of filteredSkills(); track skill.id) {
             <div class="skill-card" [class.editing]="editingSkillId() === skill.id">
               
               @if (editingSkillId() === skill.id) {
@@ -311,6 +361,66 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
     
     .add-btn:hover {
       background: #5a67d8;
+    }
+
+    .filters {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+      background: #f7fafc;
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+
+    .filter-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #4a5568;
+      font-weight: 500;
+    }
+
+    .filter-group input,
+    .filter-group select {
+      width: 100%;
+      padding: 0.65rem 0.75rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      box-sizing: border-box;
+    }
+
+    .filter-group input:focus,
+    .filter-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .reset-filters {
+      padding: 0.65rem 1rem;
+      background: #edf2f7;
+      color: #4a5568;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      height: 42px;
+    }
+
+    .reset-filters:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    .reset-filters:hover:not(:disabled) {
+      background: #e2e8f0;
+    }
+
+    .filter-summary {
+      color: #718096;
+      font-size: 0.875rem;
+      margin-bottom: 1.5rem;
     }
     
     .add-skill-form {
@@ -782,6 +892,15 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
         grid-template-columns: 1fr;
       }
 
+      .filters {
+        grid-template-columns: 1fr;
+        align-items: stretch;
+      }
+
+      .reset-filters {
+        width: 100%;
+      }
+
       .add-skill-form {
         padding: 1.5rem;
       }
@@ -823,14 +942,39 @@ import { HeaderComponent } from "../../../shared/components/header/header.compon
 export class DashboardComponent implements OnInit {
     skillService = inject(SkillService);
     private fb = inject(FormBuilder);
+    private destroyRef = inject(DestroyRef);
 
     skillForm: FormGroup;
     editForm: FormGroup;
+    filterForm: FormGroup;
     showAddForm = signal(false);
     submitting = signal(false);
     successMessage = signal<string>('');
     viewMode = signal<'grid' | 'list'>('grid');
     editingSkillId = signal<string | null>(null);
+    private filterState = signal({ search: '', category: '', level: '' });
+    filteredSkills = computed(() => {
+      const skills = this.skillService.skills();
+      const { search, category, level } = this.filterState();
+      const normalizedSearch = search.toLowerCase();
+
+      return skills.filter(skill => {
+        if (category && skill.category !== category) {
+          return false;
+        }
+        if (level && skill.currentLevel !== level) {
+          return false;
+        }
+        if (normalizedSearch && !skill.name.toLowerCase().includes(normalizedSearch)) {
+          return false;
+        }
+        return true;
+      });
+    });
+    hasActiveFilters = computed(() => {
+      const { search, category, level } = this.filterState();
+      return !!(search || category || level);
+    });
 
     categories = [
         { value: SkillCategory.PROGRAMMING, label: 'Programmation' },
@@ -868,6 +1012,19 @@ export class DashboardComponent implements OnInit {
             currentLevel: ['', Validators.required],
             targetLevel: [''],
         });
+
+        this.filterForm = this.fb.group({
+          search: [''],
+          category: [''],
+          level: [''],
+        });
+
+        this.filterState.set(this.normalizeFilterValue(this.filterForm.value));
+        this.filterForm.valueChanges
+          .pipe(takeUntilDestroyed(this.destroyRef))
+          .subscribe(value => {
+            this.filterState.set(this.normalizeFilterValue(value));
+          });
     }
 
     ngOnInit() {
@@ -884,6 +1041,10 @@ export class DashboardComponent implements OnInit {
             this.skillForm.reset();
         }
         this.successMessage.set('');
+    }
+
+    clearFilters() {
+      this.filterForm.reset({ search: '', category: '', level: '' });
     }
     
     isFieldInvalid(fieldName: string): boolean {
@@ -996,5 +1157,13 @@ export class DashboardComponent implements OnInit {
 
     getLevelLabel(level: SkillLevel): string {
         return this.levels.find(l => l.value === level)?.label || level;
+    }
+
+    private normalizeFilterValue(value: { search?: string | null; category?: string | null; level?: string | null }) {
+      return {
+        search: (value.search ?? '').trim(),
+        category: value.category ?? '',
+        level: value.level ?? ''
+      };
     }
 }

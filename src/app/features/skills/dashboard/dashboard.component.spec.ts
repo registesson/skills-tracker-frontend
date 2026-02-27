@@ -638,6 +638,44 @@ describe('DashboardComponent', () => {
     });
   });
 
+  describe('Filtres', () => {
+    beforeEach(() => {
+      (skillService.skills as any).set(mockSkills);
+    });
+
+    it('devrait filtrer par catégorie', () => {
+      component.filterForm.patchValue({ category: SkillCategory.FRAMEWORK });
+      const filtered = component.filteredSkills();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('Angular');
+    });
+
+    it('devrait filtrer par niveau', () => {
+      component.filterForm.patchValue({ level: SkillLevel.ADVANCED });
+      const filtered = component.filteredSkills();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('TypeScript');
+    });
+
+    it('devrait rechercher par nom', () => {
+      component.filterForm.patchValue({ search: 'ang' });
+      const filtered = component.filteredSkills();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('Angular');
+    });
+
+    it('devrait combiner les filtres', () => {
+      component.filterForm.patchValue({
+        category: SkillCategory.PROGRAMMING,
+        level: SkillLevel.ADVANCED,
+        search: 'script'
+      });
+      const filtered = component.filteredSkills();
+      expect(filtered.length).toBe(1);
+      expect(filtered[0].name).toBe('TypeScript');
+    });
+  });
+
   describe('Données des dropdowns', () => {
     it('devrait avoir toutes les catégories', () => {
       expect(component.categories.length).toBe(9);
