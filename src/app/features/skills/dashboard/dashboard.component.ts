@@ -5,6 +5,8 @@ import { SkillService } from "../../../core/services/skill.service";
 import { Skill, SkillCategory, SkillLevel } from "../../../core/models/skill.model";
 import { HeaderComponent } from "../../../shared/components/header/header.component";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { PdfExportService } from "../../../core/services/pdf-export.service";
+import { AuthService } from "../../../core/services/auth.service";
 
 @Component({
     selector: 'app-dashboard',
@@ -35,6 +37,9 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
               <span class="toggle-icon">☰</span>
             </button>
           </div>
+          <button class="export-btn" (click)="exportToPDF()" [disabled]="exportingPdf() || skillService.skills().length === 0" title="Exporter en PDF">
+            {{ exportingPdf() ? '⏳ Export...' : '📄 Exporter PDF' }}
+          </button>
           <button class="add-btn" (click)="toggleAddForm()">
             {{ showAddForm() ? 'Annuler' : '+ Ajouter une compétence' }}
           </button>
@@ -347,6 +352,27 @@ import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 
     .toggle-icon {
       font-size: 1rem;
+    }
+    
+    .export-btn {
+      padding: 0.75rem 1.5rem;
+      background: #48bb78;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .export-btn:hover:not(:disabled) {
+      background: #38a169;
+    }
+
+    .export-btn:disabled {
+      background: #cbd5e0;
+      cursor: not-allowed;
+      opacity: 0.6;
     }
     
     .add-btn {
@@ -943,6 +969,8 @@ export class DashboardComponent implements OnInit {
     skillService = inject(SkillService);
     private fb = inject(FormBuilder);
     private destroyRef = inject(DestroyRef);
+    private pdfExportService = inject(PdfExportService);
+    private authService = inject(AuthService);
 
     skillForm: FormGroup;
     editForm: FormGroup;
@@ -952,6 +980,7 @@ export class DashboardComponent implements OnInit {
     successMessage = signal<string>('');
     viewMode = signal<'grid' | 'list'>('grid');
     editingSkillId = signal<string | null>(null);
+    exportingPdf = signal(false);
     private filterState = signal({ search: '', category: '', level: '' });
     filteredSkills = computed(() => {
       const skills = this.skillService.skills();
@@ -1165,5 +1194,42 @@ export class DashboardComponent implements OnInit {
         category: value.category ?? '',
         level: value.level ?? ''
       };
+    }
+
+    async exportToPDF() {
+        let user = this.authService.currentUser();
+        if (!user) {
+            alert('Utilisateur non connecté');
+            return;
+        }
+
+        // Si les informations sont incomplètes, utiliser des valeurs par défaut
+        if (!user.firstName || !user.lastName) {
+            user = {
+                ...user,
+                firstName: user.firstName || 'Utilisateur',
+                lastName: user.lastName || 'Skills Tracker'
+            };
+        }
+
+        const skills = this.skillService.skills();
+        if (skills.length === 0) {
+            alert('Aucune compétence à exporter');
+            return;
+        }
+
+        this.exportingPdf.set(true);
+        try {
+            await this.pdfExportService.exportProfileToPDF(user, skills);
+            this.successMessage.set('✨ Votre profil a été exporté en PDF avec succès !');
+            setTimeout(() => {
+                this.successMessage.set('');
+            }, 5000);
+        } catch (error) {
+            console.error('Erreur lors de l\'export PDF:', error);
+            alert('Erreur lors de l\'export du PDF');
+        } finally {
+            this.exportingPdf.set(false);
+        }
     }
 }
