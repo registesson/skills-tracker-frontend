@@ -3,15 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { LearningSessionService } from '../../../core/services/learning-session.service';
 import { LearningSession } from '../../../core/models/learning-session.model';
-import { HeaderComponent } from '../../../shared/components/header/header.component';
 
 @Component({
   selector: 'app-session-history',
   standalone: true,
-  imports: [CommonModule, FormsModule, HeaderComponent],
+  imports: [CommonModule, FormsModule],
   template: `
-    <app-header></app-header>
-
     <div class="history-container">
       <div class="history-header">
         <h2>📋 Historique des sessions</h2>

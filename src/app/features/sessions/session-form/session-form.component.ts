@@ -5,15 +5,12 @@ import { Router } from '@angular/router';
 import { SkillService } from '../../../core/services/skill.service';
 import { LearningSessionService } from '../../../core/services/learning-session.service';
 import { Skill } from '../../../core/models/skill.model';
-import { HeaderComponent } from '../../../shared/components/header/header.component';
 
 @Component({
   selector: 'app-session-form',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, HeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
-    <app-header></app-header>
-
     <div class="session-container">
       <div class="session-header">
         <h2>⏱️ Enregistrer une session</h2>

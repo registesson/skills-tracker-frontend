@@ -1,0 +1,10 @@
+:host {
+  display: contents;
+}
+
+::ng-deep {
+  [data-theme="dark"] {
+    background-color: #0f1419;
+    color: #e2e8f0;
+  }
+}

@@ -3,7 +3,6 @@ import { CommonModule } from "@angular/common";
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from "@angular/forms";
 import { SkillService } from "../../../core/services/skill.service";
 import { Skill, SkillCategory, SkillLevel } from "../../../core/models/skill.model";
-import { HeaderComponent } from "../../../shared/components/header/header.component";
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { PdfExportService } from "../../../core/services/pdf-export.service";
 import { AuthService } from "../../../core/services/auth.service";
@@ -11,10 +10,8 @@ import { AuthService } from "../../../core/services/auth.service";
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule, HeaderComponent],
+    imports: [CommonModule, ReactiveFormsModule],
     template: `
-    <app-header></app-header>
-    
     <div class="dashboard-container">
       <div class="dashboard-header">
         <h2>Mes Compétences</h2>
