@@ -17,6 +17,11 @@ export enum SkillCategory {
     LANGUAGE = 'LANGUAGE',
     OTHER = 'OTHER'
   }
+
+  export interface NotificationPreferences {
+    enabled: boolean;
+    inactiveDaysThreshold: number;
+  }
   
   export interface Skill {
     id: string;
@@ -29,6 +34,8 @@ export enum SkillCategory {
     updatedAt: string;
     totalLearningSessions: number;
     totalLearningHours: number;
+    notificationPreferences?: NotificationPreferences;
+    lastSessionDate?: string;
   }
 
   export interface CreateSkillRequest {

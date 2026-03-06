@@ -6,13 +6,18 @@ import { Skill, SkillCategory, SkillLevel } from "../../../core/models/skill.mod
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { PdfExportService } from "../../../core/services/pdf-export.service";
 import { AuthService } from "../../../core/services/auth.service";
+import { NotificationBannerComponent } from "../../../shared/components/notification-banner/notification-banner.component";
+import { NotificationService } from "../../../core/services/notification.service";
 
 @Component({
     selector: 'app-dashboard',
     standalone: true,
-    imports: [CommonModule, ReactiveFormsModule],
+    imports: [CommonModule, ReactiveFormsModule, NotificationBannerComponent],
     template: `
     <div class="dashboard-container">
+      <!-- Bannière de notifications -->
+      <app-notification-banner></app-notification-banner>
+      
       <div class="dashboard-header">
         <h2>Mes Compétences</h2>
         <div class="header-actions">
@@ -227,6 +232,33 @@ import { AuthService } from "../../../core/services/auth.service";
                     <label>Description</label>
                     <textarea formControlName="description" rows="2"></textarea>
                   </div>
+                  
+                  <!-- Préférences de notification -->
+                  <div class="notification-section">
+                    <h4>🔔 Notifications de pratique</h4>
+                    <div class="form-group checkbox-group">
+                      <label class="checkbox-label">
+                        <input type="checkbox" formControlName="notificationEnabled" />
+                        <span>Recevoir des rappels si je ne pratique pas cette compétence</span>
+                      </label>
+                    </div>
+                    @if (editForm.get('notificationEnabled')?.value) {
+                      <div class="form-group">
+                        <label>Me notifier après</label>
+                        <div class="inline-input">
+                          <input 
+                            type="number" 
+                            formControlName="notificationThreshold" 
+                            min="1" 
+                            max="30" 
+                            class="days-input"
+                          />
+                          <span>jours sans pratique</span>
+                        </div>
+                      </div>
+                    }
+                  </div>
+                  
                   <div class="edit-actions">
                     <button type="submit" class="save-btn" [disabled]="editForm.invalid || submitting()">
                       {{ submitting() ? 'Sauvegarde...' : '✓ Sauvegarder' }}
@@ -830,6 +862,60 @@ import { AuthService } from "../../../core/services/auth.service";
     .cancel-btn:hover {
       background: #718096;
     }
+
+    /* Section de notification */
+    .notification-section {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f7fafc;
+      border-radius: 8px;
+      border: 1px solid #e2e8f0;
+    }
+
+    .notification-section h4 {
+      margin: 0 0 1rem 0;
+      color: #4a5568;
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .checkbox-group {
+      margin-bottom: 1rem;
+    }
+
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      cursor: pointer;
+      font-size: 0.95rem;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 1.25rem;
+      height: 1.25rem;
+      cursor: pointer;
+    }
+
+    .inline-input {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .days-input {
+      width: 80px;
+      padding: 0.5rem;
+      border: 1px solid #cbd5e0;
+      border-radius: 4px;
+      font-size: 0.95rem;
+      text-align: center;
+    }
+
+    .days-input:focus {
+      outline: none;
+      border-color: #667eea;
+    }
     
     .loading, .empty-state {
       text-align: center;
@@ -968,6 +1054,7 @@ export class DashboardComponent implements OnInit {
     private destroyRef = inject(DestroyRef);
     private pdfExportService = inject(PdfExportService);
     private authService = inject(AuthService);
+    private notificationService = inject(NotificationService);
 
     skillForm: FormGroup;
     editForm: FormGroup;
@@ -1037,6 +1124,8 @@ export class DashboardComponent implements OnInit {
             category: ['', Validators.required],
             currentLevel: ['', Validators.required],
             targetLevel: [''],
+            notificationEnabled: [true],
+            notificationThreshold: [3, [Validators.min(1), Validators.max(30)]],
         });
 
         this.filterForm = this.fb.group({
@@ -1127,6 +1216,8 @@ export class DashboardComponent implements OnInit {
             category: skill.category,
             currentLevel: skill.currentLevel,
             targetLevel: skill.targetLevel || '',
+            notificationEnabled: skill.notificationPreferences?.enabled ?? true,
+            notificationThreshold: skill.notificationPreferences?.inactiveDaysThreshold ?? 3,
         });
     }
 
@@ -1144,16 +1235,39 @@ export class DashboardComponent implements OnInit {
                 targetLevel: formValue.targetLevel || undefined
             };
 
-            this.skillService.updateSkill(this.editingSkillId()!, request).subscribe({
+            const skillId = this.editingSkillId()!;
+            
+            this.skillService.updateSkill(skillId, request).subscribe({
                 next: (skill) => {
-                    this.editingSkillId.set(null);
-                    this.editForm.reset();
-                    this.submitting.set(false);
-                    this.successMessage.set(`✨ La compétence "${skill.name}" a été modifiée avec succès !`);
+                    // Mettre à jour les préférences de notification séparément
+                    const notificationPreferences = {
+                        enabled: formValue.notificationEnabled,
+                        inactiveDaysThreshold: formValue.notificationThreshold
+                    };
+                    
+                    this.notificationService.updateNotificationPreferences(skillId, notificationPreferences).subscribe({
+                        next: () => {
+                            this.editingSkillId.set(null);
+                            this.editForm.reset();
+                            this.submitting.set(false);
+                            this.successMessage.set(`✨ La compétence "${skill.name}" a été modifiée avec succès !`);
 
-                    setTimeout(() => {
-                        this.successMessage.set('');
-                    }, 5000);
+                            setTimeout(() => {
+                                this.successMessage.set('');
+                            }, 5000);
+                        },
+                        error: () => {
+                            // La compétence a été mise à jour mais pas les notifications
+                            this.editingSkillId.set(null);
+                            this.editForm.reset();
+                            this.submitting.set(false);
+                            this.successMessage.set(`⚠️ Compétence mise à jour, mais erreur sur les préférences de notification`);
+                            
+                            setTimeout(() => {
+                                this.successMessage.set('');
+                            }, 5000);
+                        }
+                    });
                 },
                 error: () => {
                     this.submitting.set(false);
